@@ -1,0 +1,68 @@
+import numpy as np 
+import pandas as pd
+import joblib
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from keras.models import Sequential
+from keras.layers import Dense
+
+# 1. Load dữ liệu
+df = pd.read_csv("bodyfat.csv")
+
+# Giả sử cột target tên "BodyFat" hoặc "bodyfat"
+target_col = None
+for c in df.columns:
+    if "bodyfat" in c.lower():
+        target_col = c
+        break
+
+if target_col is None:
+    raise ValueError("Không tìm thấy cột BodyFat trong CSV.")
+
+X = df.drop(columns=[target_col])
+y = df[target_col]
+
+# 2. Chia tập train/test
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# 3. Chuẩn hóa dữ liệu
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# 4. Xây dựng model Keras
+model = Sequential()
+model.add(Dense(64, activation='relu', input_shape=(X_train.shape[1],)))
+model.add(Dense(32, activation='relu'))
+model.add(Dense(1, activation='linear'))  # Regression output
+
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+
+# 5. Huấn luyện
+history = model.fit(
+    X_train, y_train,
+    epochs=200,
+    verbose=1
+)
+
+# 6. Đánh giá
+loss, mae = model.evaluate(X_test, y_test, verbose=0)
+print(f"Test Loss (MSE): {loss:.3f}")
+print(f"Test MAE: {mae:.3f}")
+
+# 7. Dự đoán thử nhiều mẫu
+n_samples = 5
+samples = X_test[:n_samples]
+preds = model.predict(samples).flatten()
+
+print("\nSo sánh giá trị thật và dự đoán (10 mẫu đầu):")
+for i in range(n_samples):
+    true_val = y_test.iloc[i]
+    pred_val = preds[i]
+    print(f"Mẫu {i+1:2d} | Thật: {true_val:6.2f} | Dự đoán: {pred_val:6.2f}")
+
+model.save("bodyfat.keras")
+joblib.dump(scaler, "scaler.joblib")
+
