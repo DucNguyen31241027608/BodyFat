@@ -66,3 +66,54 @@ for i in range(n_samples):
 model.save("bodyfat.keras")
 joblib.dump(scaler, "scaler.joblib")
 
+
+=== CODE GIAO DIỆN ===
+
+import joblib
+import numpy as np
+import pandas as pd
+import ipywidgets as widgets
+from IPython.display import display
+from keras.models import load_model
+
+# 1. Load lại model và scaler
+model = load_model("bodyfat.keras")
+scaler = joblib.load("scaler.joblib")
+
+# 2. Load lại cấu trúc dữ liệu (để biết tên cột)
+df = pd.read_csv("bodyfat.csv")
+target_col = [c for c in df.columns if "bodyfat" in c.lower()][0]
+feature_cols = df.drop(columns=[target_col]).columns.tolist()
+
+# 3. Tạo ô nhập liệu cho từng feature
+inputs = {}
+for col in feature_cols:
+    inputs[col] = widgets.FloatText(
+        description=col,
+        style={'description_width': '150px'},
+        layout=widgets.Layout(width='400px')
+    )
+
+# 4. Nút dự đoán
+button = widgets.Button(description="Dự đoán % mỡ cơ thể", button_style="success")
+output = widgets.Output()
+
+def on_predict_clicked(b):
+    with output:
+        output.clear_output()
+        # Lấy dữ liệu từ form
+        values = [inputs[col].value for col in feature_cols]
+        X_new = np.array(values).reshape(1, -1)
+        # Chuẩn hóa
+        X_new_scaled = scaler.transform(X_new)
+        # Dự đoán
+        pred = model.predict(X_new_scaled)[0][0]
+        print(f"👉 Dự đoán % mỡ cơ thể: {pred:.2f}")
+
+button.on_click(on_predict_clicked)
+
+# 5. Hiển thị form
+form_items = [inputs[col] for col in feature_cols]
+ui = widgets.VBox(form_items + [button, output])
+display(ui)
+
